@@ -1,5 +1,6 @@
 # SpringAnimator
-A framer.js DHO and RK4 spring animation port for Android.
+[![](https://travis-ci.org/unixzii/android-SpringAnimator.svg?branch=master)](https://travis-ci.org/unixzii/android-SpringAnimator)
+<br/>A framer.js DHO and RK4 spring animation port for Android.
 
 ### Features
 * Extends from `Animator`, providing a familiar API to use
@@ -7,7 +8,9 @@ A framer.js DHO and RK4 spring animation port for Android.
 * Bundled playground app, fine-tuning made easy
 
 ## Demo
-Checkout the playground here: #placeholder#
+Checkout the playground here: [playground.apk](https://github.com/unixzii/android-SpringAnimator/releases/download/0.1.0-alpha1/playground.apk)
+
+![Screencast](https://github.com/unixzii/android-SpringAnimator/blob/master/art/screencast.gif?raw=true)
 
 ## Requirements
 SpringAnimator requires API 16 or higher.
