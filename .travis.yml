@@ -1,4 +1,6 @@
 language: android
+sudo: required
+dist: precise
 
 android:
   components:
