@@ -10,7 +10,7 @@
 ## Demo
 Checkout the playground here: [playground.apk](https://github.com/unixzii/android-SpringAnimator/releases/download/0.1.0-alpha1/playground.apk)
 
-![Screencast](https://github.com/unixzii/android-SpringAnimator/blob/master/art/screencast.gif?raw=true)
+<img src="https://github.com/unixzii/android-SpringAnimator/blob/master/art/screencast.gif?raw=true" alt="Screencast" height="500" />
 
 ## Requirements
 SpringAnimator requires API 16 or higher.
