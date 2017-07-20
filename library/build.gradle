@@ -1,0 +1,46 @@
+apply plugin: 'com.android.library'
+apply plugin: 'com.novoda.bintray-release'
+
+def gitVersionCode = 1
+try {
+    gitVersionCode = Integer.parseInt('git rev-list HEAD --count'.execute().text.trim())
+} catch (NumberFormatException e) {
+    println("WARN: no git commits yet")
+}
+def gitVersionName = 'git tag --list'.execute().text.split('\n').last().trim()
+
+if (gitVersionName.length() == 0) {
+    gitVersionName = '0.0.0'
+}
+
+android {
+    compileSdkVersion 25
+    buildToolsVersion "26.0.0"
+
+    defaultConfig {
+        minSdkVersion 16
+        targetSdkVersion 25
+        versionCode gitVersionCode
+        versionName gitVersionName
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    provided 'com.android.support:appcompat-v7:25.3.1'
+}
+
+// jcenter configuration for novoda's bintray-release
+// $ ./gradlew clean build bintrayUpload -PbintrayUser=BINTRAY_USERNAME -PbintrayKey=BINTRAY_KEY -PdryRun=false
+publish {
+    groupId = 'me.cyandev'
+    artifactId = 'springanimator'
+    publishVersion = gitVersionName
+    desc = 'A framer.js DHO and RK4 spring animation port for Android.'
+}
