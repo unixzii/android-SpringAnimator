@@ -33,10 +33,11 @@ import me.cyandev.springanimatordemo.R;
 import me.cyandev.springanimatordemo.util.SimpleAnimatorListener;
 
 public class RecyclerViewPreviewFragment extends BasePreviewFragment {
-
+    
     private RecyclerView mRecyclerView;
 
     private List<AbsSpringAnimator> mAnimators = new ArrayList<>();
+    private int mLastScrollOffsetY = 0;
 
     @Override
     public void onResetView() {
@@ -54,29 +55,7 @@ public class RecyclerViewPreviewFragment extends BasePreviewFragment {
 
         for (int i = 0, count = mRecyclerView.getChildCount(); i < count; i++) {
             final View child = mRecyclerView.getChildAt(i);
-            final float dy = mRecyclerView.getHeight();
-
-            child.setTranslationY(dy);
-
-            AbsSpringAnimator animator = createNewAnimator();
-            animator.setStartValue(dy);
-            animator.setEndValue(0);
-            animator.setStartDelay(50 * i);
-            animator.addUpdateListener(new AbsSpringAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(AbsSpringAnimator animation) {
-                    child.setTranslationY(animation.getAnimatedValue());
-                }
-            });
-            animator.addListener(new SimpleAnimatorListener() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    mAnimators.remove(animation);
-                }
-            });
-            animator.start();
-
-            mAnimators.add(animator);
+            performAnimation(child, i);
         }
     }
 
@@ -88,8 +67,50 @@ public class RecyclerViewPreviewFragment extends BasePreviewFragment {
         mRecyclerView.setClipToPadding(false);
         mRecyclerView.setPadding(0, 0, 0,
                 (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()));
+        mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                // track for determining animation direction.
+                mLastScrollOffsetY = dy;
+            }
+        });
 
         return mRecyclerView;
+    }
+
+    private AbsSpringAnimator performAnimation(View v, long staggeringIndex) {
+        return performAnimation(v, staggeringIndex, false);
+    }
+
+    private AbsSpringAnimator performAnimation(final View v, boolean slideDown) {
+        return performAnimation(v, 0, slideDown);
+    }
+
+    private AbsSpringAnimator performAnimation(final View v, long staggeringIndex, boolean slideDown) {
+        final float dy = (slideDown ? -1 : 1) * mRecyclerView.getHeight();
+        v.setTranslationY(dy);
+
+        AbsSpringAnimator animator = createNewAnimator();
+        animator.setStartValue(dy);
+        animator.setEndValue(0);
+        animator.setStartDelay(50 * staggeringIndex);
+        animator.addUpdateListener(new AbsSpringAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(AbsSpringAnimator animation) {
+                v.setTranslationY(animation.getAnimatedValue());
+            }
+        });
+        animator.addListener(new SimpleAnimatorListener() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mAnimators.remove(animation);
+            }
+        });
+        animator.start();
+
+        mAnimators.add(animator);
+
+        return animator;
     }
 
     private void stopAnimators() {
@@ -101,16 +122,16 @@ public class RecyclerViewPreviewFragment extends BasePreviewFragment {
         mAnimators.clear();
     }
 
-    private class SimpleAdapter extends RecyclerView.Adapter {
+    private class SimpleAdapter extends RecyclerView.Adapter<SimpleViewHolder> {
 
         @Override
-        public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        public SimpleViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             View view = LayoutInflater.from(getContext()).inflate(R.layout.item_simple, parent, false);
             return new SimpleViewHolder(view);
         }
 
         @Override
-        public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+        public void onBindViewHolder(SimpleViewHolder holder, int position) {
             // No-op
         }
 
@@ -119,9 +140,19 @@ public class RecyclerViewPreviewFragment extends BasePreviewFragment {
             return 20;
         }
 
+        @Override
+        public void onViewAttachedToWindow(SimpleViewHolder holder) {
+            if (holder.attachedAnimator != null && holder.attachedAnimator.isRunning()) {
+                holder.attachedAnimator.cancel();
+            }
+            holder.attachedAnimator = performAnimation(holder.itemView, mLastScrollOffsetY < 0);
+        }
+
     }
 
     private class SimpleViewHolder extends RecyclerView.ViewHolder {
+
+        AbsSpringAnimator attachedAnimator;
 
         public SimpleViewHolder(View itemView) {
             super(itemView);
