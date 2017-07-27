@@ -18,25 +18,47 @@ package me.cyandev.springanimatordemo.preview;
 
 import android.animation.Animator;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
+import android.support.v4.util.Pair;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Semaphore;
 
 import me.cyandev.springanimator.AbsSpringAnimator;
 import me.cyandev.springanimatordemo.R;
 import me.cyandev.springanimatordemo.util.SimpleAnimatorListener;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class RecyclerViewPreviewFragment extends BasePreviewFragment {
-    
+
+    private static final String TAG = RecyclerViewPreviewFragment.class.getName();
+    private static final boolean DEBUG = true;
+
+    private static final int MAX_PREFETCH_ITEM_COUNT = 20;
+    private static final String IMAGE_SOURCE_API_ENDPOINT = "https://source.unsplash.com/random/800x600";
+
     private RecyclerView mRecyclerView;
 
+    private OkHttpClient mHttpClient;
+
     private List<AbsSpringAnimator> mAnimators = new ArrayList<>();
+    private List<Pair<String, Boolean>> mImageSource = new ArrayList<>();
+    private ImageSourcePumper mImageSourcePumper;
+    private volatile boolean mIsStarted = false;
+    private int mUnvisitedItemCount = 0;
     private int mLastScrollOffsetY = 0;
 
     @Override
@@ -60,6 +82,16 @@ public class RecyclerViewPreviewFragment extends BasePreviewFragment {
     }
 
     @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        mHttpClient = new OkHttpClient.Builder()
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .build();
+    }
+
+    @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         mRecyclerView = new RecyclerView(getContext());
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -76,6 +108,31 @@ public class RecyclerViewPreviewFragment extends BasePreviewFragment {
         });
 
         return mRecyclerView;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        mIsStarted = true;
+
+        mImageSourcePumper = new ImageSourcePumper();
+        mImageSourcePumper.start();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        mIsStarted = false;
+
+        mImageSourcePumper.interrupt();
+        try {
+            mImageSourcePumper.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            // Simply ignore this.
+        }
     }
 
     private AbsSpringAnimator performAnimation(View v, long staggeringIndex) {
@@ -162,6 +219,63 @@ public class RecyclerViewPreviewFragment extends BasePreviewFragment {
                     onStartAnimation();
                 }
             });
+        }
+
+    }
+
+    private class ImageSourcePumper extends Thread {
+
+        private Semaphore mCallSem = new Semaphore(0);
+
+        @Override
+        public void run() {
+            while (mIsStarted) {
+                while (mUnvisitedItemCount >= MAX_PREFETCH_ITEM_COUNT) {
+                    try {
+                        synchronized (mImageSource) {
+                            mImageSource.wait();
+                        }
+                    } catch (InterruptedException ignored) {}
+                    if (!mIsStarted) {
+                        return;
+                    }
+                }
+
+                if (DEBUG) {
+                    Log.d(TAG, "Starting a new request!");
+                }
+
+                Request req = new Request.Builder()
+                        .url(IMAGE_SOURCE_API_ENDPOINT)
+                        .build();
+                Call call = mHttpClient.newCall(req);
+                call.enqueue(new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        mCallSem.release();
+                    }
+
+                    @Override
+                    public void onResponse(Call call, Response response) throws IOException {
+                        List<String> maybeLocation = response.headers().values("Location");
+                        if (maybeLocation != null && maybeLocation.size() >= 1) {
+                            Pair<String, Boolean> src = new Pair<>(maybeLocation.get(0), false);
+                            mImageSource.add(src);
+                            ++mUnvisitedItemCount;
+                        }
+
+                        mCallSem.release();
+                    }
+                });
+
+                try {
+                    mCallSem.acquire();
+                } catch (InterruptedException ignored) {
+                    if (!mIsStarted) {
+                        return;
+                    }
+                }
+            }
         }
 
     }

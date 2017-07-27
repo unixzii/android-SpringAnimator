@@ -20,6 +20,7 @@
 
     <permission android:name="me.cyandev.springanimatordemo.permission.PERMISSION_SEND_CONFIGURATION" />
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="me.cyandev.springanimatordemo.permission.PERMISSION_SEND_CONFIGURATION" />
 
     <application
