@@ -20,7 +20,7 @@ import android.animation.Animator;
 import android.animation.TimeInterpolator;
 import android.os.Build;
 import android.os.Looper;
-import android.support.annotation.RequiresApi;
+import androidx.annotation.RequiresApi;
 import android.util.AndroidRuntimeException;
 import android.util.Log;
 
